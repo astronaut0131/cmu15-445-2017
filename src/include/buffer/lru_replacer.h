@@ -11,6 +11,8 @@
 
 #include "buffer/replacer.h"
 #include "hash/extendible_hash.h"
+#include <list>
+#include <mutex>
 
 namespace cmudb {
 
@@ -31,6 +33,11 @@ public:
 
 private:
   // add your member variables here
+  // use a double linked list
+  // element in front is the one to be victimized
+  // element accessed will be moved to the back of the list
+  std::list<T> list_;
+  std::mutex latch_;
 };
 
 } // namespace cmudb

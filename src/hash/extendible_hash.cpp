@@ -10,14 +10,19 @@ namespace cmudb {
  * array_size: fixed array size for each bucket
  */
 template <typename K, typename V>
-ExtendibleHash<K, V>::ExtendibleHash(size_t size) {}
+ExtendibleHash<K, V>::ExtendibleHash(size_t size)
+    : global_depth_(0), num_buckets_(1), bucket_capacity_(size) {
+  buckets_table_.resize(1);
+  buckets_table_[0] = std::make_shared<Bucket<K,V>>(size,0);
+}
 
 /*
  * helper function to calculate the hashing address of input key
  */
 template <typename K, typename V>
 size_t ExtendibleHash<K, V>::HashKey(const K &key) {
-  return 0;
+  std::hash<K> hash_func;
+  return hash_func(key) % buckets_table_.size();
 }
 
 /*
@@ -26,7 +31,7 @@ size_t ExtendibleHash<K, V>::HashKey(const K &key) {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetGlobalDepth() const {
-  return 0;
+  return global_depth_;
 }
 
 /*
@@ -35,7 +40,7 @@ int ExtendibleHash<K, V>::GetGlobalDepth() const {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
-  return 0;
+  return buckets_table_[bucket_id]->GetLocalDepth();
 }
 
 /*
@@ -43,7 +48,7 @@ int ExtendibleHash<K, V>::GetLocalDepth(int bucket_id) const {
  */
 template <typename K, typename V>
 int ExtendibleHash<K, V>::GetNumBuckets() const {
-  return 0;
+  return num_buckets_;
 }
 
 /*
@@ -51,7 +56,7 @@ int ExtendibleHash<K, V>::GetNumBuckets() const {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
-  return false;
+  return buckets_table_[HashKey(key)]->Find(key, value);
 }
 
 /*
@@ -60,7 +65,7 @@ bool ExtendibleHash<K, V>::Find(const K &key, V &value) {
  */
 template <typename K, typename V>
 bool ExtendibleHash<K, V>::Remove(const K &key) {
-  return false;
+  return buckets_table_[HashKey(key)]->Remove(key);
 }
 
 /*
@@ -69,7 +74,39 @@ bool ExtendibleHash<K, V>::Remove(const K &key) {
  * global depth
  */
 template <typename K, typename V>
-void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {}
+void ExtendibleHash<K, V>::Insert(const K &key, const V &value) {
+  int index = HashKey(key);
+  if (buckets_table_[index]->Full()) {
+    if (buckets_table_[index]->GetLocalDepth() == global_depth_) {
+      global_depth_++;
+      size_t origin_size = buckets_table_.size();
+      buckets_table_.resize(2*origin_size);
+      for (size_t i = origin_size; i < 2 * origin_size; i++) {
+        buckets_table_[i] = buckets_table_[i - origin_size];
+      }
+    }
+    buckets_table_[index]->IncLocalDepth();
+    vector<size_t> indexes;
+    for (size_t i = 0; i < buckets_table_.size(); i++) {
+      if (buckets_table_[i].get() == buckets_table_[index].get()) {
+        indexes.push_back(i);
+      }
+    }
+    auto items = buckets_table_[index]->GetItems();
+    buckets_table_[index]->Clear();
+    auto new_bucket = std::make_shared<Bucket<K,V>>(bucket_capacity_,buckets_table_[index]->GetLocalDepth());
+    num_buckets_++;
+    for (size_t i = indexes.size()/2;i < indexes.size(); i++) {
+      buckets_table_[indexes[i]] = new_bucket;
+    }
+    for (auto& kv:items) {
+      Insert(kv.first,kv.second);
+    }
+    Insert(key,value);
+  } else {
+    buckets_table_[index]->Insert(key,value);
+  }
+}
 
 template class ExtendibleHash<page_id_t, Page *>;
 template class ExtendibleHash<Page *, std::list<Page *>::iterator>;

@@ -315,7 +315,7 @@ TEST(BPlusTreeTests, ScaleTest) {
   GenericComparator<8> comparator(key_schema);
 
   DiskManager *disk_manager = new DiskManager("test.db");
-  BufferPoolManager *bpm = new BufferPoolManager(30, disk_manager);
+  BufferPoolManager *bpm = new BufferPoolManager(1000, disk_manager);
   // create b+ tree
   BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm,
                                                            comparator);
@@ -327,7 +327,7 @@ TEST(BPlusTreeTests, ScaleTest) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(page_id);
   (void)header_page;
-
+  //int64_t scale = 1000;
   int64_t scale = 10000;
   std::vector<int64_t> keys;
   for (int64_t key = 1; key < scale; key++) {
@@ -340,10 +340,15 @@ TEST(BPlusTreeTests, ScaleTest) {
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
   }
+//  for (auto iterator = tree.Begin(); iterator.isEnd() == false;
+//       ++iterator) {
+//    LOG_INFO("%lld",(*iterator).first.ToString());
+//  }
   std::vector<RID> rids;
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
+
     tree.GetValue(index_key, rids);
     EXPECT_EQ(rids.size(), 1);
 

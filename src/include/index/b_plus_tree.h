@@ -89,6 +89,12 @@ private:
 
   void UpdateRootPageId(int insert_record = false);
 
+  // helper function to create a new node
+  template <typename N> N* NewNode(page_id_t parent_id = INVALID_PAGE_ID);
+
+  // wrapper function of buffer pool manager operation
+  Page* FetchPage(page_id_t page_id);
+  Page* NewPage(page_id_t& page_id);
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;
